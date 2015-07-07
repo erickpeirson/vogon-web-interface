@@ -1,0 +1,14 @@
+{
+  "version": "0.0.0",
+  "private": true,
+  "name": "vwi",
+  "description": "A tutorial application for AngularJS",
+  "devDependencies": {
+    "http-server": "^0.6.1"
+  },
+  "scripts": {
+
+    "prestart": "npm install",
+    "start": "http-server -a 0.0.0.0 -p 8001"
+  }
+}

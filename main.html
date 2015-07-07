@@ -1,0 +1,115 @@
+<html ng-app="annotationApp">
+    <head>
+        <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap-theme.min.css" />
+        <script src="bower_components/angularjs/angular.min.js"></script>
+        <script src="bower_components/angular-resource/angular-resource.min.js"></script>
+        <script src="bower_components/angular-sanitize/angular-sanitize.min.js"></script>
+        <script src="js/libs/angucomplete-alt.min.js"></script>
+        <script src="bower_components/angularjs/ui-bootstrap-tpls-0.13.0.min.js"></script>
+        <script src="bower_components/jquery/dist/jquery.min.js"></script>
+        <link rel="stylesheet" href="css/main.css" />
+        <script src="js/main.js"></script>
+    </head>
+    <body>
+        <div id="header" class="navbar-fixed-top">
+            <nav class="navbar navbar-inverse">
+              <div class="container">
+                <div class="navbar-header">
+                  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                  </button>
+                  <a class="navbar-brand" href="#">Vogon Web</a>
+                </div>
+                <div id="navbar" class="collapse navbar-collapse">
+                  <ul class="nav navbar-nav">
+
+                  </ul>
+                </div><!--/.nav-collapse -->
+              </div>
+            </nav>
+
+        </div>
+
+
+        <div id="main">
+
+            <div id="text" class="panel">
+                <div id="instructions" ng-controller="InstructionController" class="sticky panel panel-info" ng-bind-html="message"></div>
+                <div id="textContent" ng-controller="TextController">
+                    <div id="textContentInner" ng-bind-html="textContent" bind-text></div>
+                </div>
+            </div>
+
+            <div id="rightTools" class="sticky">
+                <div id="networkVis" class="panel panel-default">
+                    <div class="panel-heading">
+                        <div class="panel-title">Network</div>
+                    </div>
+                    <div class="panel-body">asdf</div>
+                </div>
+                <div class="panel panel-default">
+                    <tabset justified="true">
+                        <tab heading="Appellations" active="true">
+                            <div id="annotations" ng-controller="AppellationsController" class="panel-body">
+                                <div class="list-group">
+                                    <a href="#" ng-repeat="appellation in appellations" class="list-group-item" ng-click="appellationClick(appellation.id)">
+                                        {{ appellation.stringRep }}
+                                    </a>
+                                </div>
+                            </div>
+                        </tab>
+                        <tab heading="Relations">Relations go here.</tab>
+                    </tabset>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="modalConcept" ng-controller="ModalConceptControl">
+            <script type="text/ng-template" id="modalConcept.html">
+                <div class="modal-header">
+                    <h3 class="modal-title">What is this?</h3>
+                </div>
+                <div class="modal-body">
+                    <p>You selected <span class="quotedText">{{ text.stringRep }}</span></p>
+                    <p>Please select the concept (e.g. person, place, institution, organism) to which your text selection refers.</p>
+
+                    <!-- Wire this up correctly -->
+                    <div angucomplete-alt id="members" placeholder="Search members" pause="400" selected-object="concept" remote-url="http://localhost:8000/rest/concept?search=" remote-url-data-field="" title-field="label" description-field="email" image-field="profilePic" input-class="form-control form-control-small">
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" ng-click="ok()">OK</button>
+                    <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
+                </div>
+            </script>
+        </div>
+
+<!--        <div id="modalRelation" ng-controller="ModalRelationControl">-->
+<!--            <script type="text/ng-template" id="modalRelation.html">-->
+<!--                <div class="modal-header">-->
+<!--                    <h3 class="modal-title">How are these concepts related?</h3>-->
+<!--                </div>-->
+<!--                <div class="modal-body">-->
+<!--                    <p>You selected <span class="quotedText">{{ text.stringRep }}</span></p>-->
+<!--                    <p>Please select the concept (e.g. person, place, institution, organism) to which your text selection refers.</p>-->
+<!---->
+<!--                    <!-- Wire this up correctly -->-->
+<!--                    <div angucomplete-alt id="members" placeholder="Search members" pause="400" selected-object="concept" remote-url="http://localhost:8000/rest/concept?search=" remote-url-data-field="" title-field="label" description-field="email" image-field="profilePic" input-class="form-control form-control-small">-->
+<!--                    </div>-->
+<!---->
+<!--                </div>-->
+<!--                <div class="modal-footer">-->
+<!--                    <button class="btn btn-primary" ng-click="ok()">OK</button>-->
+<!--                    <button class="btn btn-warning" ng-click="cancel()">Cancel</button>-->
+<!--                </div>-->
+<!--            </script>-->
+<!--        </div>-->
+    </body>
+
+</html>
