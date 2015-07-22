@@ -1,6 +1,3 @@
-
-
-
 var app = angular.module('annotationApp', ['ngResource', 'ngSanitize', 'ui.bootstrap', 'angucomplete-alt']);
 
 app.factory('Text', function($resource) {
@@ -15,21 +12,52 @@ app.factory('Relation', function($resource) {
     return $resource('http://localhost:8000/rest/relation/:id/');
 });
 
+app.factory('Predicate', function($resource) {
+    return $resource('http://localhost:8000/rest/predicate/:id/');
+});
+
+app.factory('TemporalBounds', function($resource) {
+    return $resource('http://localhost:8000/rest/temporalbounds/:id/');
+});
+
+app.factory('Concept', function($resource) {
+    return $resource('http://localhost:8000/rest/concept/:id/');
+});
+
+
 app.factory('messageService', function($rootScope) {
     var service = {}
     service.newMessage = function(message) {
-        console.log(message);
         $rootScope.$broadcast('newMessage', message);
     }
     return service;
 });
 
-app.factory('selectionService', function(appellationService, messageService) {
+app.factory('selectionService', function(appellationService, messageService, predicateService, conceptService, temporalBoundsService, relationService, errors) {
     var service = {
         ignoreWordClick: false,
         ignoreAppellationClick: false,
         expectTarget: false,
+        noAppellation: false,
     };
+
+    /**
+      * Reset service to default state.
+      */
+    service.reset = function() {
+        service.ignoreWordClick = false;
+        service.ignoreAppellationClick = false;
+        service.expectTarget = false;
+        service.noAppellation = false;
+        service.source = null;
+        service.target = null;
+        service.predicate = null;
+        service.sourceConcept = null;
+        service.targetConcept = null;
+        service.predicateConcept = null;
+
+        service.clearActions();
+    }
 
     var getStringRep = function(selector, delim) {
         var stringRep = $.map(selector, function(selem) {
@@ -63,8 +91,45 @@ app.factory('selectionService', function(appellationService, messageService) {
                 stringRep: stringRep,
                 tokenIds: tokenIds.join(',')
             };
+
             // TODO: simplify this -vv-
-            angular.element($('#modalConcept')).scope().open(text);
+            var settings = {
+                title: 'What is this?',
+                instructions: 'Please select the concept (e.g. person, place, institution, organism) to which your text selection refers.',
+                text: text,
+                pos: 'noun',
+                placeholder: 'Search for a concept',
+            }
+            angular.element($('#modalConcept')).scope().open(settings, function(modalData) {
+                var annotationScope = angular.element(document.getElementById('annotations')).scope();
+
+                try {
+                    var concept = modalData.concept.originalObject;
+
+                    var data = {    // Appellation creation payload.
+                        interpretation: concept.id,
+                        stringRep: modalData.text.stringRep,
+                        tokenIds: modalData.text.tokenIds,
+                        occursIn: 1,
+                        createdBy: 1,
+                        inSession: 1
+                    }
+                    appellationService
+                        .createAppellation(data)
+                        .then(function(a) {
+                            service.source = a;
+                        })
+                        .catch(function() {
+                            service.reset();
+                            errors.catch("Could not create appellation!");
+                        });
+                }
+                catch(error) {
+                    service.reset();
+                    errors.catch("Could not create appellation!");
+                }
+
+            });
         }
     }
 
@@ -74,7 +139,114 @@ app.factory('selectionService', function(appellationService, messageService) {
         action: function(e) {
             service.ignoreWordClick = true;
             service.expectTarget = true;
+            service.clearActions();
             messageService.newMessage('create a new relation!');
+        }
+    }
+
+    /**
+      * Used to finalize a text selection.      glyphicon-calendar
+      */
+    var createPredicateIcon = {
+        type: 'glyphicon-ok',
+        id: 'predicate',
+        action: function(e) {
+            var stringRep = getStringRep(service.selected, ' ');
+            var tokenIds = $.map(service.selected, function(selem) {
+                return selem.id;
+            });
+            var text = {
+                stringRep: stringRep,
+                tokenIds: tokenIds.join(',')
+            };
+            var settings = {
+                title: 'What??',
+                instructions: 'Do this!',
+                text: text,
+                pos: 'verb',
+                placeholder: 'Search for a concept',
+            }
+            angular.element($('#modalConcept')).scope().open(settings, function (modalData) {
+                // var annotationScope = angular.element(document.getElementById('annotations')).scope();
+
+                try {
+                    var concept = modalData.concept.originalObject;
+
+                    var data = {    // Predicate creation payload.
+                        interpretation: concept.id,
+                        stringRep: modalData.text.stringRep,
+                        tokenIds: modalData.text.tokenIds,
+                        occursIn: 1,
+                        createdBy: 1,
+                        inSession: 1,
+                        asPredicate: true,
+                    }
+
+                    predicateService
+                        .createPredicate(data)
+                        .then(function(predicate) {
+                            service.predicate = predicate;
+                            service.sourceConcept = conceptService.getConcept(service.source.interpretation);
+                            service.targetConcept = conceptService.getConcept(service.target.interpretation);
+                            service.predicateConcept = conceptService.getConcept(service.predicate.interpretation);
+
+                            var tBsettings = {
+                                title: 'When did this relationship occur?',
+                                instructions: 'Select the date (to the greatest degree of precision) on which this relationship commenced or terminated, or the date on which you know the relationship to have existed. Do not provide any more information than what is substantiated by the text.',
+                                contextData: {
+                                    sourceConcept: service.sourceConcept,
+                                    predicateConcept: service.predicateConcept,
+                                    targetConcept: service.targetConcept,
+                                },
+                            }
+                            angular.element($('#modalTemporalBounds')).scope().open(tBsettings, function(modalData) {
+                                var data = {};
+                                if (modalData.started) {
+                                    data.start = [];
+                                    if (modalData.started.year) data.start.push(modalData.started.year);
+                                    if (modalData.started.month) data.start.push(modalData.started.month);
+                                    if (modalData.started.day) data.start.push(modalData.started.day);
+                                }
+                                if (modalData.ended) {
+                                    data.end = [];
+                                    if (modalData.ended.year) data.end.push(modalData.ended.year);
+                                    if (modalData.ended.month) data.end.push(modalData.ended.month);
+                                    if (modalData.ended.day) data.end.push(modalData.ended.day);
+                                }
+                                if (modalData.occurred) {
+                                    data.occur = [];
+                                    if (modalData.occurred.year) data.occur.push(modalData.occurred.year);
+                                    if (modalData.occurred.month) data.occur.push(modalData.occurred.month);
+                                    if (modalData.occurred.day) data.occur.push(modalData.occurred.day);
+                                }
+
+                                var temporalBounds = temporalBoundsService.createTemporalBounds(data).then(function(t) {
+                                    var relationData = {
+                                        source: service.source.id,
+                                        predicate: service.predicate.id,
+                                        object: service.target.id,
+                                        bounds: t.id,
+                                        occursIn: 1,
+                                        createdBy: 1,
+                                        inSession: 1,
+                                    }
+
+                                    // Last step: create the relation!
+                                    var relation = relationService.createRelation(relationData).then(service.reset);
+                                });
+
+                            });
+                        })
+                        .catch(function() {
+                            service.reset();
+                            errors.catch("Could not create predicate!");
+                        });
+                }
+                catch(error) {
+                    service.reset();
+                    errors.catch("Could not create predicate!");
+                }
+            });
         }
     }
 
@@ -110,7 +282,6 @@ app.factory('selectionService', function(appellationService, messageService) {
     }
 
     service.selectIntermediate = function(start, end) {
-
         // Select words between start and end. If start, end, or any
         // intermediate words are appellations, abort and clear all selections.
         var toSelect = start.nextUntil(end).add(start).add(end);
@@ -125,23 +296,32 @@ app.factory('selectionService', function(appellationService, messageService) {
     service.clickSelectAppellation = function(target) {
         if (service.ignoreAppellationClick) return
 
-        var targetElement, icons;
-        target = $('[appellation=' + target.attr("appellation") + ']');
-        targetElement = target.last();
+        var targetElement, targetSelector, icons;
+        targetSelector = $('[appellation=' + target.attr("appellation") + ']');
+        targetElement = targetSelector.last();
         icons = [editAppellationIcon, deleteAppellationIcon, createRelationIcon];
 
+        // Create a new relation.
         if (service.expectTarget) {
             service.relationSource = service.selected;
-            service.relationTarget = target;
+            service.relationTarget = targetSelector;
+            service.target = appellationService.getAppellation(target.attr("appellation"));
+            service.expectTarget = false;
+            service.ignoreWordClick = false;
+            service.ignoreAppellationClick = true;
+            service.noAppellation = true;
 
             var sourceRep = getStringRep(service.relationSource, ' ');
             var targetRep = getStringRep(service.relationTarget, ' ');
             messageService.newMessage('Select the word or passage that best describes the relationship between <span class="quotedText">' + sourceRep + '</span> and <span class="quotedText">' + targetRep + '</span>');
+
+        } else {
+            service.source = appellationService.getAppellation(target.attr("appellation"));
+            service.displayActions(targetElement, icons);
         }
 
         service.deSelectAll();
         service.select(target);
-        service.displayActions(targetElement, icons);
     }
 
     service.clickSelectMultiple = function(target) {
@@ -171,21 +351,24 @@ app.factory('selectionService', function(appellationService, messageService) {
             service.deSelectAll();  // ...and we start a new selection.
         }
 
-        icons = [createAppellationIcon];
         service.select(target);
-        service.displayActions(targetElement, icons);
-
+        service.displayWordActions(targetElement);
     }
 
     service.clickSelectWord = function(target) {
         if (service.ignoreWordClick) return
-
         targetElement = target;
-        icons = [createAppellationIcon];
-
         service.deSelectAll();  // New selection.
-
         service.select(target);
+        service.displayWordActions(targetElement);
+    }
+
+    service.displayWordActions = function(targetElement) {
+        if (service.noAppellation) {
+            icons = [createPredicateIcon];
+        } else {
+            icons = [createAppellationIcon];
+        }
         service.displayActions(targetElement, icons);
     }
 
@@ -193,9 +376,9 @@ app.factory('selectionService', function(appellationService, messageService) {
      * Display a set of icons next to DOM element.
      */
     service.displayActions = function(element, icons) {
-
         /**
-         * Get the appropriate offset for icons, based on the position of element.
+         * Get the appropriate offset for icons, based on the position of
+         * element.
          */
         var calculatePosition = function() {
             var position = element.position();
@@ -231,55 +414,99 @@ app.factory('selectionService', function(appellationService, messageService) {
 
 });
 
-app.factory('appellationService', ['$rootScope', 'Appellation', function($rootScope, Appellation) {
-    var service = {};
+app.factory('predicateService', ['$rootScope', 'Predicate', function($rootScope, Predicate) {
+    return {
+        createPredicate: function(data) {
+            var predicate = new Predicate(data);
+            return predicate.$save().then(function(a, rHeaders) {
+                $rootScope.$broadcast('newPredicate', a);
+                return a;
+            });
+        },
+    };
+}]);
 
-    service.getAppellations = function(callback) {
-        Appellation.query(function(appellations) {
-            service.appellations = appellations;
-            callback(appellations);
-        });
+app.factory('relationService', ['$rootScope', 'Relation', function($rootScope, Relation) {
+    return {
+        createRelation: function(data) {
+            var relation = new Relation(data);
+            return relation.$save().then(function(r, rHeaders) {
+                $rootScope.$broadcast('newRelation', r);
+                return r;
+            });
+        },
+    };
+}]);
 
-    }
+app.factory('temporalBoundsService', ['$rootScope', 'TemporalBounds', function($rootScope, TemporalBounds) {
+    return {
+        createTemporalBounds: function(data) {
+            var temporalbounds = new TemporalBounds(data);
+            return temporalbounds.$save().then(function(t, rHeaders) {
+                $rootScope.$broadcast('newTemporalBounds', t);
+                return t;
+            });
+        },
+    };
+}]);
 
-    service.getAppellation = function(appId) {  // Retrieve by ID.
-        var found;
-        service.appellations.forEach(function(appellation) {
-            if (String(appellation.id) == String(appId)) found = appellation;
-        });
-        return found;    // null if not found.
-    }
-
-    service.getAppellationIndex = function(appId) {  // Retrieve by ID.
-        var foundIndex;
-        service.appellations.forEach(function(appellation, index) {
-            if (String(appellation.id) == String(appId)) foundIndex = index;
-        });
-        return foundIndex;
-    }
-
-    service.createAppellation = function(data) {
-        var appellation = new Appellation(data);
-        appellation.$save(function(a, rHeaders) {
-            service.appellations.push(a);
-            $rootScope.$broadcast('newAppellation', a);
-        });
-    }
-
-    service.deleteAppellation = function(data) {
-        var app = service.getAppellation(data.id);
-        var appData = {
-            id: app.id,
-            tokenIds: app.tokenIds,
-            stringRep: app.stringRep
+app.factory('conceptService', ['$rootScope', 'Concept', function($rootScope, Concept) {
+    return {
+        getConcept: function(id) {
+            return Concept.get({id:id}, function(c) {
+                // Hmmm....
+            }).$promise.then(function(c){
+                return c;
+            });
         }
-        Appellation.delete(data, function() {
-            service.getAppellations(function() { null; });  // Refresh.
-            $rootScope.$broadcast('deleteAppellation', appData);
-        });
-    }
+    };
+}]);
 
-    return service;
+app.factory('appellationService', ['$rootScope', 'Appellation', function($rootScope, Appellation) {
+    return {
+        getAppellations: function(callback) {
+            service = this;
+            return Appellation.query(function(appellations) {
+                service.appellations = appellations;
+                callback(appellations);
+            });
+        },
+        getAppellation: function(appId) {  // Retrieve by ID.
+            var found;
+            service.appellations.forEach(function(appellation) {
+                if (String(appellation.id) == String(appId)) found = appellation;
+            });
+            return found;    // null if not found.
+        },
+        getAppellationIndex: function(appId) {  // Retrieve by ID.
+            var foundIndex;
+            service.appellations.forEach(function(appellation, index) {
+                if (String(appellation.id) == String(appId)) foundIndex = index;
+            });
+            return foundIndex;
+        },
+        createAppellation: function(data) {
+            var appellation = new Appellation(data);
+            return appellation.$save().then(function(a, rHeaders) {
+                service.appellations.push(a);
+                $rootScope.$broadcast('newAppellation', a);
+                return a;
+            });
+        },
+        deleteAppellation: function(data) {
+            var app = service.getAppellation(data.id);
+            var appData = {
+                id: app.id,
+                tokenIds: app.tokenIds,
+                stringRep: app.stringRep
+            }
+            return Appellation.delete(data).then(function() {
+                service.getAppellations(function() { null; });  // Refresh.
+                $rootScope.$broadcast('deleteAppellation', appData);
+                return appData;
+            });
+        }
+    };
 }]);
 
 
@@ -332,37 +559,46 @@ app.controller('AppellationsController', ['$scope', 'appellationService', 'selec
 
 }]);
 
-app.controller('ModalConceptControl', function ($scope, $modal, $log, appellationService) {
+app.controller('ModalTemporalBoundsControl', function($scope, $modal, $log) {
     $scope.animationsEnabled = true;
-    $scope.open = function (text) {
+
+    $scope.open = function(settings, callback) {
+        settings.dateOptions = {
+
+        };
+
+        var modalInstance = $modal.open({
+            animation: $scope.animationsEnabled,
+            templateUrl: 'modalTemporalBounds.html',
+            controller: 'ModalInstanceController',
+            resolve: {
+                settings: function() {
+                    return settings;
+                },
+            }
+        });
+
+        modalInstance.result.then(callback, function() {
+            $log.info('Modal dismissed at: ' + new Date());
+        });
+    }
+});
+
+app.controller('ModalConceptControl', function ($scope, $modal, $log) {
+    $scope.animationsEnabled = true;
+    $scope.open = function (settings, callback) {
         var modalInstance = $modal.open({
             animation: $scope.animationsEnabled,
             templateUrl: 'modalConcept.html',
             controller: 'ModalInstanceController',
             resolve: {
-                text: function() {
-                    return text;
+                settings: function() {
+                    return settings;
                 },
             }
         });
 
-        modalInstance.result.then(function (modalData) {
-            var annotationScope = angular.element(document.getElementById('annotations')).scope();
-
-            // TODO: handle case that modal is closed without selection.
-            var concept = modalData.concept.originalObject;
-
-            var data = {    // Appellation creation payload.
-                interpretation: concept.id,
-                stringRep: modalData.text.stringRep,
-                tokenIds: modalData.text.tokenIds,
-                occursIn: 1,
-                createdBy: 1,
-                inSession: 1
-            }
-            appellationService.createAppellation(data);
-
-        }, function () {
+        modalInstance.result.then(callback, function () {
             $log.info('Modal dismissed at: ' + new Date());
         });
     };
@@ -372,8 +608,20 @@ app.controller('ModalConceptControl', function ($scope, $modal, $log, appellatio
     };
 });
 
-app.controller('ModalInstanceController', function ($scope, $modalInstance, text) {
-    $scope.text = text;
+app.controller('ModalInstanceController', function ($scope, $modalInstance, settings) {
+    $scope.text = settings.text;
+    $scope.pos = settings.pos;
+    $scope.title = settings.title;
+    $scope.instructions = settings.instructions;
+    $scope.placeholder = settings.placeholder;
+    $scope.contextData = settings.contextData;
+    $scope.okDisabled = true;
+
+    $scope.selectConcept = function(c) {
+        $scope.concept = c;
+        $scope.okDisabled = false;
+    };
+
     $scope.ok = function () {
         $modalInstance.close($scope);
     };
@@ -382,8 +630,6 @@ app.controller('ModalInstanceController', function ($scope, $modalInstance, text
         $modalInstance.dismiss('cancel');
     };
 });
-
-
 
 app.controller('TextController', function($scope, $sce, Text) {
     var text = Text.get({id:1}, function() {    // TODO: not hardcoded!!
@@ -445,6 +691,11 @@ app.directive('bindText', function($rootScope, appellationService, selectionServ
             selectionService.clearActions();
         });
 
+        $rootScope.$on('newPredicate', function(event, a) {
+            selectionService.deSelectAll();
+            selectionService.clearActions();
+        });
+
         $rootScope.$on('deleteAppellation', function(event, a) {
             unHighlight(a);
             selectionService.deSelectAll();
@@ -453,19 +704,22 @@ app.directive('bindText', function($rootScope, appellationService, selectionServ
     }
 });
 
+app.factory("errors", function($rootScope){
+    return {
+        catch: function(message){
+            return function(reason){
+                $rootScope.addError({message: message, reason: reason})
+            };
+        }
+    };
+});
 
 $(document).ready(function() {
     var s = $(".sticky");
-    var pos = s.position();                    
+    var pos = s.position();
     $(window).scroll(function() {
         var windowpos = $(window).scrollTop();
         if (windowpos >= pos.top) s.addClass("stick");
         else s.removeClass("stick");
     });
 });
-
-
-
-
-
-

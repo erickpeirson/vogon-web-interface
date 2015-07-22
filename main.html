@@ -72,23 +72,98 @@
         <div id="modalConcept" ng-controller="ModalConceptControl">
             <script type="text/ng-template" id="modalConcept.html">
                 <div class="modal-header">
-                    <h3 class="modal-title">What is this?</h3>
+                    <h3 class="modal-title">{{ title }}</h3>
                 </div>
                 <div class="modal-body">
                     <p>You selected <span class="quotedText">{{ text.stringRep }}</span></p>
-                    <p>Please select the concept (e.g. person, place, institution, organism) to which your text selection refers.</p>
+                    <p>{{ instructions }}</p>
 
-                    <!-- Wire this up correctly -->
-                    <div angucomplete-alt id="members" placeholder="Search members" pause="400" selected-object="concept" remote-url="http://localhost:8000/rest/concept?search=" remote-url-data-field="" title-field="label" description-field="email" image-field="profilePic" input-class="form-control form-control-small">
+                    <div angucomplete-alt field-required="true" id="concepts" placeholder="{{ placeholder }}" pause="100" selected-object="selectConcept" remote-url="http://localhost:8000/rest/concept?pos={{ pos }}&search=" remote-url-data-field="" title-field="label" description-field="description" input-class="form-control form-control-small">
                     </div>
 
                 </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" ng-click="ok()" ng-disabled="okDisabled">OK</button>
+                    <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
+                </div>
+            </script>
+        </div>
+
+        <div id="modalTemporalBounds" ng-controller="ModalTemporalBoundsControl">
+            <script type="text/ng-template" id="modalTemporalBounds.html">
+                <div class="modal-header">
+                    <h3 class="modal-title">{{ title }}</h3>
+                </div>
+                <div class="modal-body">
+                    <p>You asserted that <span class="quotedText">{{ contextData.sourceConcept.label }} - {{ contextData.predicateConcept.label }} - {{ contextData.targetConcept.label }}</span></p>
+                    <p>{{ instructions }}</p>
+
+                    <form name="temporalForm">
+                        <table>
+                            <tr>
+                                <td>Started:</td>
+                                <td>
+                                    <input class="temporalInput" ng-model="started.year" type="number" name="startedYear" ng-minlength="4" ng-maxlength="4" placeholder="Year">
+                                    <input class="temporalInput" ng-model="started.month" type="number" name="startedMonth" min="1" max="12" ng-minlength="1" ng-maxlength="2" placeholder="Month">
+                                    <input class="temporalInput" ng-model="started.day" type="number" name="startedDay" min="1" max="31" ng-minlength="1" ng-maxlength="2" placeholder="Day">
+                                    <span class="glyphicon glyphicon-question-sign" popover="The date on which this relationship commenced, or your assertion (above) became true." popover-trigger="mouseenter"></span>
+                                    <div role="alert">
+                                      <span class="error" ng-show="temporalForm.startedYear.$error.minlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.startedYear.$error.maxlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.startedMonth.$error.minlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.startedMonth.$error.maxlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.startedDay.$error.minlength">Enter a one or two-digit day of the month.</span>
+                                      <span class="error" ng-show="temporalForm.startedDay.$error.maxlength">Enter a one or two-digit day of the month.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Ended:</td>
+                                <td>
+                                    <input class="temporalInput" ng-model="ended.year" type="number" name="endedYear" ng-minlength="4" ng-maxlength="4" placeholder="Year">
+                                    <input class="temporalInput" ng-model="ended.month" type="number" name="endedMonth" min="1" max="12" ng-minlength="1" ng-maxlength="2" placeholder="Month">
+                                    <input class="temporalInput" ng-model="ended.day" type="number" name="endedDay" min="1" max="31" ng-minlength="1" ng-maxlength="2" placeholder="Day">
+                                    <span class="glyphicon glyphicon-question-sign" popover="The date on which this relationship ended, or your assertion (above) ceased to be true." popover-trigger="mouseenter"></span>
+                                    <div role="alert">
+                                      <span class="error" ng-show="temporalForm.endedYear.$error.minlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.endedYear.$error.maxlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.endedMonth.$error.minlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.endedMonth.$error.maxlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.endedDay.$error.minlength">Enter a one or two-digit day of the month.</span>
+                                      <span class="error" ng-show="temporalForm.endedDay.$error.maxlength">Enter a one or two-digit day of the month.</span>
+                                    </div>
+                                <td>
+                            </tr>
+                            <tr>
+                                <td>Occurred:</td>
+                                <td>
+                                    <input class="temporalInput" ng-model="occurred.year" type="number" name="occurredYear" ng-minlength="4" ng-maxlength="4" placeholder="Year">
+                                    <input class="temporalInput" ng-model="occurred.month" type="number" name="occurredMonth" min="1" max="12" ng-minlength="1" ng-maxlength="2" placeholder="Month">
+                                    <input class="temporalInput" ng-model="occurred.day" type="number" name="occurredDay" min="1" max="31" ng-minlength="1" ng-maxlength="2" placeholder="Day">
+                                    <span class="glyphicon glyphicon-question-sign" popover="A date on which you know this relationship to have existed (or your assertion (above) to have been true) regardless of when it commenced or ended." popover-trigger="mouseenter"></span>
+                                    <div role="alert">
+                                      <span class="error" ng-show="temporalForm.occurredYear.$error.minlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.occurredYear.$error.maxlength">Enter a four-digit year.</span>
+                                      <span class="error" ng-show="temporalForm.occurredMonth.$error.minlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.occurredMonth.$error.maxlength">Enter a one or two-digit month.</span>
+                                      <span class="error" ng-show="temporalForm.occurredDay.$error.minlength">Enter a one or two-digit day of the month.</span>
+                                      <span class="error" ng-show="temporalForm.occurredDay.$error.maxlength">Enter a one or two-digit day of the month.</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </form>
+                </div>
+
                 <div class="modal-footer">
                     <button class="btn btn-primary" ng-click="ok()">OK</button>
                     <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
                 </div>
             </script>
         </div>
+
+
 
 <!--        <div id="modalRelation" ng-controller="ModalRelationControl">-->
 <!--            <script type="text/ng-template" id="modalRelation.html">-->
