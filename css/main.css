@@ -11,11 +11,20 @@ div#header nav {
     margin-bottom: 0px;
 }
 
-div#instructions {
+/*div#instructions {
     width: 54%;
-    height: 30px;
+
     padding: 5px;
     font-size: 10pt;
+
+    font-style: italic;
+    color: blue;
+}*/
+
+div#alerts {
+    top: 70px;
+    height: 40px;
+    width: 54%;
 }
 
 div#actions {
@@ -39,7 +48,7 @@ div#actions {
 
 div#main {
     width: 90%;
-    margin-top: 50px;
+    /*margin-top: 50px;*/
     margin-left: auto;
     margin-right: auto;
 
@@ -47,13 +56,13 @@ div#main {
 
 div#text {
     width: 60%;
+    margin-top: 140px;
 }
 
 div#textContent {
     padding: 15px;
-    padding-top: 40px;
+    /*margin-top: 70px;*/
     line-height: 1.8em;
-
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
@@ -95,10 +104,12 @@ word {
 
     word.selected {
         color: blue;
+        text-shadow: 0px 0px 20px orange;
     }
 
     word.appellation.selected {
         color: red;
+        text-shadow: 0px 0px 20px green;
     }
 
 .actionIcons {
@@ -157,7 +168,13 @@ word {
     color: gray;
 }
 
+
+
 .error {
     color: red;
     padding: 5px;
+}
+
+word.appellation.highlight {
+    text-shadow: 0px 0px 20px blue;
 }

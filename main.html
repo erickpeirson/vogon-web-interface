@@ -11,7 +11,7 @@
         <link rel="stylesheet" href="css/main.css" />
         <script src="js/main.js"></script>
     </head>
-    <body>
+    <body escape-key>
         <div id="header" class="navbar-fixed-top">
             <nav class="navbar navbar-inverse">
               <div class="container">
@@ -34,11 +34,13 @@
 
         </div>
 
-
         <div id="main">
-
+            <div ng-controller="AlertController" id="alerts" class="sticky">
+                <alert ng-repeat="alert in alerts" type="{{ alert.type }}" close="closeAlert($index)" ng-bind-html="alert.message"></alert>
+            </div>        
             <div id="text" class="panel">
-                <div id="instructions" ng-controller="InstructionController" class="sticky panel panel-info" ng-bind-html="message"></div>
+                <!-- <div id="instructions" ng-controller="InstructionController" class="sticky panel panel-info" ng-bind-html="message"></div> -->
+
                 <div id="textContent" ng-controller="TextController">
                     <div id="textContentInner" ng-bind-html="textContent" bind-text></div>
                 </div>
@@ -83,7 +85,7 @@
 
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" ng-click="ok()" ng-disabled="okDisabled">OK</button>
+                    <button class="btn btn-primary" ng-enter="ok()" ng-click="ok()" ng-disabled="okDisabled">OK</button>
                     <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
                 </div>
             </script>
@@ -157,34 +159,11 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-primary" ng-click="ok()">OK</button>
+                    <button class="btn btn-primary" ng-enter="ok()" ng-click="ok()">OK</button>
                     <button class="btn btn-warning" ng-click="cancel()">Cancel</button>
                 </div>
             </script>
         </div>
-
-
-
-<!--        <div id="modalRelation" ng-controller="ModalRelationControl">-->
-<!--            <script type="text/ng-template" id="modalRelation.html">-->
-<!--                <div class="modal-header">-->
-<!--                    <h3 class="modal-title">How are these concepts related?</h3>-->
-<!--                </div>-->
-<!--                <div class="modal-body">-->
-<!--                    <p>You selected <span class="quotedText">{{ text.stringRep }}</span></p>-->
-<!--                    <p>Please select the concept (e.g. person, place, institution, organism) to which your text selection refers.</p>-->
-<!---->
-<!--                    <!-- Wire this up correctly -->-->
-<!--                    <div angucomplete-alt id="members" placeholder="Search members" pause="400" selected-object="concept" remote-url="http://localhost:8000/rest/concept?search=" remote-url-data-field="" title-field="label" description-field="email" image-field="profilePic" input-class="form-control form-control-small">-->
-<!--                    </div>-->
-<!---->
-<!--                </div>-->
-<!--                <div class="modal-footer">-->
-<!--                    <button class="btn btn-primary" ng-click="ok()">OK</button>-->
-<!--                    <button class="btn btn-warning" ng-click="cancel()">Cancel</button>-->
-<!--                </div>-->
-<!--            </script>-->
-<!--        </div>-->
     </body>
 
 </html>
