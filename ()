@@ -1,0 +1,26 @@
+Annotation functionality is fairly solid. 
+
+Next steps are:
+* Integrate with Django to support annotation of any text;
+* Add support for sessions;
+* Interface for selecting repositories, texts.
+
+On the backend:
+* Mechanisms for selecting texts from repositories;
+* Mechanisms for text-prep prior to annotation;
+* Export to Quadriga/QStore4s;
+* Visualization/export of conjugate data.
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Committer: Erick Peirson <erickpeirson@manzanita.local>
+#
+# On branch master
+# Your branch is up-to-date with 'origin/master'.
+#
+# Changes to be committed:
+#	modified:   css/main.css
+#	modified:   js/main.js
+#	modified:   main.html
+#

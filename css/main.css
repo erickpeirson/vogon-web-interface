@@ -3,7 +3,9 @@ body {
     margin: 0px;
     padding: 0px;
     background-color: rgb(250, 250, 250);
-    min-width: 800px;
+    min-width: 1000px;
+    min-height: 600px;
+    height: 100%;
 }
 
 
@@ -11,24 +13,14 @@ div#header nav {
     margin-bottom: 0px;
 }
 
-/*div#instructions {
-    width: 54%;
-
-    padding: 5px;
-    font-size: 10pt;
-
-    font-style: italic;
-    color: blue;
-}*/
 
 div#alerts {
-    top: 70px;
     height: 40px;
-    width: 54%;
+    width: 500px;
 }
 
 div#actions {
-    width: 52%;
+    width: 450px;
     margin-left: auto;
     margin-right: auto;
     margin-top: 30px;
@@ -47,20 +39,44 @@ div#actions {
     }
 
 div#main {
-    width: 90%;
-    /*margin-top: 50px;*/
+    margin-top: 25px;
+    width: 1000px;
     margin-left: auto;
     margin-right: auto;
+    vertical-align: top;
+    height: 90%
+}
 
+div#left {
+    display: inline-block;
+    width: 500px;
+    height: 90%;
+    vertical-align: top;
+    margin-left: auto;
+}
+div#right {
+    display: inline-block;
+    height: 500px;
+    width: 350px;
+    margin-right: auto;
+    margin-left: 20px;
+    vertical-align: top;
 }
 
 div#text {
-    width: 60%;
-    margin-top: 140px;
+    width: 500px;
+    height: 90%;
+    left: 50px;
+    margin-top: 20px;
 }
 
 div#textContent {
+    overflow: auto;
+    height: 95%;
+    width: 500px;
+    margin-top: 10px;
     padding: 15px;
+    padding-top: 5px;
     /*margin-top: 70px;*/
     line-height: 1.8em;
     -webkit-touch-callout: none;
@@ -72,20 +88,13 @@ div#textContent {
 
 }
 
-.sticky {
-    position: fixed;
-}
-
 div#rightTools {
-    top: 70px;
-    right: 5%;
-    width: 30%;
+    width: 350px;
+    height: 400px;
 
 }
-
     div#networkVis {
         height: 400px;
-
     }
 
     div#annotations {
@@ -96,6 +105,9 @@ div#rightTools {
     div#relations {
 
         height: 400px;
+    }
+    div#network {
+        padding: 0px;
     }
 
 word {

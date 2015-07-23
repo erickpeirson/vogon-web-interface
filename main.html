@@ -15,7 +15,7 @@
         <title>Annotate</title>
     </head>
     <body escape-key>
-        <div id="header" class="navbar-fixed-top">
+        <div id="header">
             <nav class="navbar navbar-inverse">
               <div class="container">
                 <div class="navbar-header">
@@ -38,45 +38,48 @@
         </div>
 
         <div id="main">
-            <div ng-controller="AlertController" id="alerts" class="sticky">
-                <alert ng-repeat="alert in alerts" type="{{ alert.type }}" close="closeAlert($index)" ng-bind-html="alert.message"></alert>
-            </div>
-            <div id="text" class="panel">
-                <!-- <div id="instructions" ng-controller="InstructionController" class="sticky panel panel-info" ng-bind-html="message"></div> -->
+            <div id="left">
+                <div ng-controller="AlertController" id="alerts">
+                    <alert ng-repeat="alert in alerts" type="{{ alert.type }}" close="closeAlert($index)" ng-bind-html="alert.message"></alert>
+                </div>
+                <div id="text" class="panel">
+                    <!-- <div id="instructions" ng-controller="InstructionController" class="sticky panel panel-info" ng-bind-html="message"></div> -->
 
-                <div id="textContent" ng-controller="TextController">
-                    <div id="textContentInner" ng-bind-html="textContent" bind-text></div>
+                    <div id="textContent" ng-controller="TextController">
+                        <div id="textContentInner" ng-bind-html="textContent" bind-text></div>
+                    </div>
                 </div>
             </div>
-
-            <div id="rightTools" class="sticky">
-                <div class="panel panel-default">
-                    <tabset justified="true">
-                        <tab heading="Network" active="true">
-                            <div id="networkVis" class="panel panel-default">
-                                <div d3-network class="panel-body" id="network"></div>
-                            </div>
-                        </tab>
-                        <tab heading="Appellations">
-                            <div id="annotations" ng-controller="AppellationsController" class="panel-body">
-                                <div class="list-group">
-                                    <a href="#" ng-repeat="appellation in appellations" class="list-group-item" ng-click="appellationClick(appellation.id)">
-                                        <span class="quotedText">{{ appellation.stringRep }}</span> ({{ appellationLabels[appellation.id] }})
-                                    </a>
+            <div id="right">
+                <div id="rightTools">
+                    <div class="panel panel-default">
+                        <tabset justified="true">
+                            <tab heading="Network" active="true">
+                                <div id="networkVis" class="panel panel-default">
+                                    <div d3-network class="panel-body" id="network"></div>
                                 </div>
-                            </div>
-                        </tab>
-                        <tab heading="Relations">
-                            <div id="relations" ng-controller="RelationsController" class="panel-body">
-                                <div class="list-group">
-                                    <a href="#" ng-repeat="relation in relations" class="list-group-item" ng-click="relationClick(relation)">
-                                        {{ relationLabels[relation.id].source }} - <span class="quotedText">{{ relationLabels[relation.id].predicate }}</span> - {{ relationLabels[relation.id].target }}
-                                    </a>
+                            </tab>
+                            <tab heading="Appellations">
+                                <div id="annotations" ng-controller="AppellationsController" class="panel-body">
+                                    <div class="list-group">
+                                        <a href="#" ng-repeat="appellation in appellations" class="list-group-item" ng-click="appellationClick(appellation.id)">
+                                            <span class="quotedText">{{ appellation.stringRep }}</span> ({{ appellationLabels[appellation.id] }})
+                                        </a>
+                                    </div>
                                 </div>
-                            </div>
-                        </tab>
+                            </tab>
+                            <tab heading="Relations">
+                                <div id="relations" ng-controller="RelationsController" class="panel-body">
+                                    <div class="list-group">
+                                        <a href="#" ng-repeat="relation in relations" class="list-group-item" ng-click="relationClick(relation)">
+                                            {{ relationLabels[relation.id].source }} - <span class="quotedText">{{ relationLabels[relation.id].predicate }}</span> - {{ relationLabels[relation.id].target }}
+                                        </a>
+                                    </div>
+                                </div>
+                            </tab>
 
-                    </tabset>
+                        </tabset>
+                    </div>
                 </div>
             </div>
 

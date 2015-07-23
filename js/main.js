@@ -443,11 +443,11 @@ app.factory('selectionService', function(appellationService, messageService, pre
         if (service.ignoreWordClick) return
 
         targetElement = target;
-        service.deHighlightAll();
         service.deSelectAll();  // New selection.
 
         var networkScope = angular.element($('#network')).isolateScope();
         if (!service.noAppellation) {
+            service.deHighlightAll();
             networkScope.unselectNodes();
             if(!networkScope.$$phase) networkScope.$apply();
         }
@@ -999,8 +999,8 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
         link: function(scope, element, attrs) {
 
             d3Service.d3().then(function(d3) {
-                var width = 300,
-                    height = 390,
+                var width = 345,
+                    height = 398,
                     linkDistance = 100;
 
 
@@ -1256,12 +1256,12 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
 }]);
 
 $(document).ready(function() {
-    var s = $(".sticky");
-    var pos = s.position();
-    $(window).scroll(function() {
-        var windowpos = $(window).scrollTop();
-        if (windowpos >= pos.top) s.addClass("stick");
-        else s.removeClass("stick");
-    });
+    // var s = $(".sticky");
+    // var pos = s.position();
+    // $(window).scroll(function() {
+    //     var windowpos = $(window).scrollTop();
+    //     if (windowpos >= pos.top) s.addClass("stick");
+    //     else s.removeClass("stick");
+    // });
 
 });
