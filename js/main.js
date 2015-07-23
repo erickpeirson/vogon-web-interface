@@ -1,11 +1,16 @@
-var app = angular.module('annotationApp', ['ngResource', 'ngSanitize', 'ui.bootstrap', 'angucomplete-alt']);
+var app = angular.module('annotationApp', ['ngResource', 'ngSanitize', 'ui.bootstrap', 'angucomplete-alt', 'd3']);
 
 app.factory('Text', function($resource) {
     return $resource('http://localhost:8000/rest/text/:id/');
 });
 
 app.factory('Appellation', function($resource) {
-    return $resource('http://localhost:8000/rest/appellation/:id/');
+    return $resource('http://localhost:8000/rest/appellation/:id/', {}, {
+        list: {
+            method: 'GET',
+            cache: true
+        }
+    });
 });
 
 app.factory('Relation', function($resource) {
@@ -21,7 +26,12 @@ app.factory('TemporalBounds', function($resource) {
 });
 
 app.factory('Concept', function($resource) {
-    return $resource('http://localhost:8000/rest/concept/:id/');
+    return $resource('http://localhost:8000/rest/concept/:id/', {}, {
+        list: {
+            method: 'GET',
+            cache: true
+        }
+    });
 });
 
 
@@ -71,7 +81,10 @@ app.factory('selectionService', function(appellationService, messageService, pre
 
         var alertScope = angular.element($('#alerts')).scope();
         alertScope.defaultAlert();
-        alertScope.$apply();
+        if(!alertScope.$$phase) {
+            alertScope.$apply();
+        }
+
     }
 
     var getStringRep = function(selector, delim) {
@@ -365,6 +378,7 @@ app.factory('selectionService', function(appellationService, messageService, pre
                         });
                 });
         } else {
+            service.deHighlightAll();
             appellationService
                 .getAppellation(target.attr("appellation"))
                 .then(function(a) {
@@ -379,6 +393,7 @@ app.factory('selectionService', function(appellationService, messageService, pre
                 });
             service.displayActions(targetElement, icons);
         }
+
         service.deSelectAll();
         service.select(target);
     }
@@ -498,6 +513,14 @@ app.factory('predicateService', ['$rootScope', 'Predicate', function($rootScope,
                 return a;
             });
         },
+        getPredicate: function(id) {
+            var service = this;
+            return Predicate.get({id:id}, function(c) {
+                /// hmmm...
+            }).$promise.then(function(c){
+                return c;
+            });
+        }
     };
 }]);
 
@@ -508,6 +531,13 @@ app.factory('relationService', ['$rootScope', 'Relation', function($rootScope, R
             return relation.$save().then(function(r, rHeaders) {
                 $rootScope.$broadcast('newRelation', r);
                 return r;
+            });
+        },
+        getRelations: function(callback) {
+            service = this;
+            return Relation.query(function(relations) {
+                service.relations = relations;
+                callback(relations);
             });
         },
     };
@@ -528,8 +558,9 @@ app.factory('temporalBoundsService', ['$rootScope', 'TemporalBounds', function($
 app.factory('conceptService', ['$rootScope', 'Concept', function($rootScope, Concept) {
     return {
         getConcept: function(id) {
+            var service = this;
             return Concept.get({id:id}, function(c) {
-                // Hmmm....
+                /// hmmm...
             }).$promise.then(function(c){
                 return c;
             });
@@ -539,16 +570,22 @@ app.factory('conceptService', ['$rootScope', 'Concept', function($rootScope, Con
 
 app.factory('appellationService', ['$rootScope', 'Appellation', function($rootScope, Appellation) {
     return {
+        appellations: [],
+        appellationHash: {},
         getAppellations: function(callback) {
             service = this;
             return Appellation.query(function(appellations) {
                 service.appellations = appellations;
+                appellations.forEach(function(a) {
+                    service.appellationHash[a.id] = a;
+                });
                 callback(appellations);
             });
         },
         getAppellation: function(appId) {  // Retrieve by ID.
+            service = this;
             return Appellation.get({id: appId}, function(c) {
-                // Hmmm...
+                // hmmm...
             }).$promise.then(function(a) {
                 return a;
             });
@@ -567,6 +604,7 @@ app.factory('appellationService', ['$rootScope', 'Appellation', function($rootSc
         },
         createAppellation: function(data) {
             var appellation = new Appellation(data);
+            var service = this;
             return appellation.$save().then(function(a, rHeaders) {
                 service.appellations.push(a);
                 $rootScope.$broadcast('newAppellation', a);
@@ -580,7 +618,7 @@ app.factory('appellationService', ['$rootScope', 'Appellation', function($rootSc
                 tokenIds: app.tokenIds,
                 stringRep: app.stringRep
             }
-            return Appellation.delete(data).then(function() {
+            return Appellation.delete(data, function() {
                 service.getAppellations(function() { null; });  // Refresh.
                 $rootScope.$broadcast('deleteAppellation', appData);
                 return appData;
@@ -638,6 +676,72 @@ app.controller('ActionsController', function ($scope) {
     $scope.isCollapsed = false;
 });
 
+app.controller('RelationsController', ['$scope', 'relationService', 'selectionService', 'conceptService', 'appellationService', '$q', 'predicateService', function($scope, relationService, selectionService, conceptService, appellationService, $q, predicateService) {
+    $scope.relationLabels = {};
+    $q.all([
+        relationService.getRelations(function(relations) {
+            $scope.relations = relations;
+
+            relations.forEach(function(relation) {
+                // if ( $scope.relationLabels[relation.id] !== undefined) return;
+
+                var sourceLabel, predicateLabel, targetLabel;
+
+                $q.all([
+                    appellationService.getAppellation(relation.source),
+                    predicateService.getPredicate(relation.predicate),
+                    appellationService.getAppellation(relation.object)
+                ]).then(function(data) {
+                    $q.all([
+                        conceptService.getConcept(data[0].interpretation),
+                        conceptService.getConcept(data[1].interpretation),
+                        conceptService.getConcept(data[2].interpretation)
+                    ]).then(function(cdata) {
+                        sourceLabel = cdata[0].label;
+                        predicateLabel = cdata[1].label;
+                        targetLabel = cdata[2].label;
+                        $scope.relationLabels[relation.id] = {
+                            source: sourceLabel,
+                            predicate: predicateLabel,
+                            target: targetLabel
+                        }
+                    });
+                });
+            });
+        })
+    ]).then(function(data) {
+        if(!$scope.$$phase) {
+            $scope.$apply();
+        }
+    });
+
+    $scope.$on('newRelation', function(event, r) {
+        $scope.relations.push(r);
+    });
+
+    var getRelationByID = function(relId) {
+        for (i = 0; i < $scope.relations.length; i++) {
+            if ($scope.relations[i].id === relId) return $scope.relations[i];
+        }
+    }
+
+    $scope.$on('deleteRelation', function(event, r) {
+        var index;  // Get index of appellation by ID.
+        $scope.relations.forEach(function(relation, i) {
+            if (String(relation.id) == String(r.id)) index = i;
+        });
+        if (index) $scope.relations.splice(index);
+    });
+
+    $scope.relationClick = function(relation) {
+        var sourceElem = $('[appellation=' + relation.source + ']');
+        var targetElem = $('[appellation=' + relation.object + ']');
+        selectionService.reset();
+        selectionService.highlight(sourceElem);
+        selectionService.highlight(targetElem);
+    }
+}]);
+
 app.controller('AppellationsController', ['$scope', 'appellationService', 'selectionService', function($scope, appellationService, selectionService) {
 
     appellationService.getAppellations(function(appellations) {
@@ -660,7 +764,6 @@ app.controller('AppellationsController', ['$scope', 'appellationService', 'selec
 
     $scope.appellationClick = function(appId) {
         var appElem = $('[appellation=' + appId + ']');
-
         selectionService.clickSelectAppellation(appElem);
     }
 
@@ -750,7 +853,6 @@ app.directive('escapeKey', function (selectionService) {
     return function (scope, element, attrs) {
         element.bind("keydown keypress", function (event) {
             if(event.which === 27) {
-                console.log('asdfasdfasdfasdf');
                 event.preventDefault();
                 selectionService.reset();
             }
@@ -858,6 +960,174 @@ app.factory("errors", function($rootScope, messageService, $timeout){
         }
     };
 });
+
+app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 'relationService', 'conceptService', function(d3Service, $rootScope, appellationService, relationService, conceptService) {
+    return {
+        scope: {
+            'graph': '='
+        },
+        restrict: 'EA',
+        link: function(scope, element, attrs) {
+
+            d3Service.d3().then(function(d3) {
+                var width = 300,
+                    height = 390;
+
+            	var force = d3.layout.force()
+            	    .charge(-50)
+            	    .linkDistance(100)
+            	    .size([width, height]);
+
+            	var svg = d3.select(element[0]).append("svg")
+            	    .attr("width", width)
+            	    .attr("height", height);
+
+                scope.nodes = [];
+                scope.edges = [];
+
+                scope.findNode = function (id) {
+                    for (var i=0; i < scope.nodes.length; i++) {
+                        if (scope.nodes[i].id === id)
+                            return scope.nodes[i];
+                    };
+                }
+
+                scope.findNodeIndex = function (id) {
+                    for (var i=0; i < scope.nodes.length; i++) {
+                        if (scope.nodes[i].id === id)
+                            return i;
+                    };
+                }
+
+                scope.findEdgeIndex = function(sourceId, targetId) {
+                    for (var i=0; i < scope.edges.length; i++) {
+                        if ((scope.edges[i].source.id === sourceId) && (scope.edges[i].target.id === targetId)) {
+                            return i;
+                        }
+                    }
+                }
+
+                scope.removeNode = function (id) {
+                    var i = 0;
+                    var n = scope.findNode(id);
+                    while (i < scope.edges.length) {
+                        if ((scope.edges[i]['source'] === n)||(scope.edges[i]['target'] == n)) scope.edges.splice(i,1);
+                        else i++;
+                    }
+                    var index = scope.findNodeIndex(id);
+                    if(index !== undefined) {
+                        scope.nodes.splice(index, 1);
+                        scope.update();
+                    }
+                }
+
+                scope.removeEdge = function(sourceId, targetId) {
+                    var edgeId = scope.findEdgeIndex(sourceId, targetId);
+                    if (edgeId !== undefined) {
+                        scope.edges.splice(edgeId, 1);
+                    }
+                    scope.update();
+                }
+
+                scope.addNode = function(node) {
+                    // scope.nodes.push(node);
+                    conceptService
+                        .getConcept(node.interpretation)
+                        .then(function(c) {
+                            scope.nodes.push(c);
+                        });
+                    scope.update();
+                }
+
+                scope.addEdge = function (relation) {
+                    var sourceNode, targetNode;
+
+                    appellationService
+                        .getAppellation(relation.source)
+                        .then(function(a) {
+                            conceptService
+                                .getConcept(a.interpretation)
+                                .then(function(c){
+                                    sourceNode = scope.findNodeIndex(c.id);
+                                    appellationService
+                                        .getAppellation(relation.object)
+                                        .then(function(a) {
+                                            conceptService
+                                                .getConcept(a.interpretation)
+                                                .then(function(c){
+                                                    targetNode = scope.findNodeIndex(c.id);
+                                                    if((sourceNode !== undefined) && (targetNode !== undefined)) {
+                                                        scope.edges.push({"source": sourceNode, "target": targetNode, "relation": relation});
+                                                        scope.update();
+                                                    }
+                                                });
+                                        });
+                                });
+                        });
+                }
+
+                scope.update = function() {
+                    svg.selectAll('*').remove();
+
+                    var edge = svg.selectAll(".edge")
+                        .data(scope.edges)
+                        .enter().append("line")
+                        .attr("class", "edge")
+                        .style("stroke", "black")
+                        .style("stroke-width", function(d) { return Math.sqrt(d.value); });
+
+                    var node = svg.selectAll(".node")
+                        .data(scope.nodes)
+                        .enter().append("circle")
+                            .attr("class", "node")
+                            .attr("r", 8)
+                            .style("fill", 'blue')
+                            .call(force.drag);
+
+                    node.append("title")
+                        .text(function(d) { return d.name; });
+
+                    force
+                        .nodes(scope.nodes)
+                        .links(scope.edges)
+                        .start();
+
+                    force.on("tick", function() {
+                        edge.attr("x1", function(d) { return d.source.x; })
+                            .attr("y1", function(d) { return d.source.y; })
+                            .attr("x2", function(d) { return d.target.x; })
+                            .attr("y2", function(d) { return d.target.y; });
+                        node.attr("cx", function(d) { return d.x; })
+                            .attr("cy", function(d) { return d.y; });
+                    });
+                }
+
+                appellationService.getAppellations(function(appellations){
+                    appellations.forEach(function(a) {
+                        scope.addNode(a);
+                    });
+                }).$promise.then(function(d) {
+                    relationService.getRelations(function(relations){
+                        relations.forEach(function(r) {
+                            scope.addEdge(r);
+                        });
+                    }).$promise.then(function(d) {
+                        scope.update();
+                    });
+                });
+
+
+                $rootScope.$on('newAppellation', function(event, a) {
+                    scope.addNode(a);
+                });
+
+                $rootScope.$on('newRelation', function(event, r) {
+                    scope.addEdge(r);
+                });
+            });
+        },
+    }
+}]);
 
 $(document).ready(function() {
     var s = $(".sticky");

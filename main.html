@@ -10,8 +10,9 @@
         <script src="bower_components/jquery/dist/jquery.min.js"></script>
         <link rel="stylesheet" href="css/main.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
-        <script src="js/main.js"></script>
         <script src="js/network.js"></script>
+        <script src="js/main.js"></script>
+
     </head>
     <body escape-key>
         <div id="header" class="navbar-fixed-top">
@@ -49,15 +50,14 @@
             </div>
 
             <div id="rightTools" class="sticky">
-                <div id="networkVis" class="panel panel-default">
-                    <div class="panel-heading">
-                        <div class="panel-title">Network</div>
-                    </div>
-                    <div class="panel-body" id="network"></div>
-                </div>
                 <div class="panel panel-default">
                     <tabset justified="true">
-                        <tab heading="Appellations" active="true">
+                        <tab heading="Network" active="true">
+                            <div id="networkVis" class="panel panel-default">
+                                <div d3-network class="panel-body" id="network"></div>
+                            </div>
+                        </tab>
+                        <tab heading="Appellations">
                             <div id="annotations" ng-controller="AppellationsController" class="panel-body">
                                 <div class="list-group">
                                     <a href="#" ng-repeat="appellation in appellations" class="list-group-item" ng-click="appellationClick(appellation.id)">
@@ -66,7 +66,16 @@
                                 </div>
                             </div>
                         </tab>
-                        <tab heading="Relations">Relations go here.</tab>
+                        <tab heading="Relations">
+                            <div id="relations" ng-controller="RelationsController" class="panel-body">
+                                <div class="list-group">
+                                    <a href="#" ng-repeat="relation in relations" class="list-group-item" ng-click="relationClick(relation)">
+                                        {{ relationLabels[relation.id].source }} {{ relationLabels[relation.id].predicate }} {{ relationLabels[relation.id].target }}
+                                    </a>
+                                </div>
+                            </div>
+                        </tab>
+
                     </tabset>
                 </div>
             </div>

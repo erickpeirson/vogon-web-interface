@@ -84,14 +84,18 @@ div#rightTools {
 }
 
     div#networkVis {
-        height: 200px;
+        height: 400px;
 
     }
 
     div#annotations {
-        margin-top: 20px;
-        height: 200px;
 
+        height: 400px;
+
+    }
+    div#relations {
+
+        height: 400px;
     }
 
 word {
@@ -177,4 +181,9 @@ word {
 
 word.appellation.highlight {
     text-shadow: 0px 0px 20px blue;
+}
+
+.list-group {
+    overflow: auto;
+    height: 370px;
 }
