@@ -47,6 +47,7 @@ app.factory('messageService', function($rootScope) {
     service.reset = function() {
         var alertScope = angular.element($('#alerts')).scope();
         alertScope.defaultAlert();
+        if(!alertScope.$$phase) alertScope.$apply();
         return;
     }
     return service;
@@ -79,11 +80,9 @@ app.factory('selectionService', function(appellationService, messageService, pre
         service.deHighlightAll();
         service.clearActions();
 
-        var alertScope = angular.element($('#alerts')).scope();
-        alertScope.defaultAlert();
-        if(!alertScope.$$phase) {
-            alertScope.$apply();
-        }
+        // var alertScope = angular.element($('#alerts')).scope();
+        // alertScope.defaultAlert();
+        // if(!alertScope.$$phase) alertScope.$apply();
 
     }
 
@@ -171,7 +170,7 @@ app.factory('selectionService', function(appellationService, messageService, pre
             service.clearActions();
             var alertScope = angular.element($('#alerts')).scope();
             alertScope.newMessage('Source: <span class="quotedText">' + service.sourceConcept.label + '</span>. Select a target appellation.');
-            alertScope.$apply();
+            if(!alertScope.$$phase) alertScope.$apply();
         }
     }
 
@@ -267,7 +266,8 @@ app.factory('selectionService', function(appellationService, messageService, pre
                                                 .createRelation(relationData)
                                                 .then(function(r) {
                                                     messageService.newMessage('Created relation: <span class="quotedText">' + service.sourceConcept.label + ' - ' + service.predicateConcept.label + ' - ' + service.targetConcept.label + '</span>.', 'success');
-                                                    $timeout(service.reset, 3000);
+                                                    service.reset();
+                                                    $timeout(messageService.reset, 3000);
                                                 });
                                         });
 
@@ -351,6 +351,7 @@ app.factory('selectionService', function(appellationService, messageService, pre
         targetSelector = $('[appellation=' + target.attr("appellation") + ']');
         targetElement = targetSelector.last();
         icons = [editAppellationIcon, deleteAppellationIcon, createRelationIcon];
+        var networkScope = angular.element($('#network')).isolateScope();
 
         // Create a new relation.
         if (service.expectTarget) {
@@ -370,14 +371,19 @@ app.factory('selectionService', function(appellationService, messageService, pre
                     service.target = a;
                     conceptService
                         .getConcept(service.target.interpretation)
-                        .then(function(c) {
-                            service.targetConcept = c;
+                        .then(function(concept) {
+                            service.targetConcept = concept;
                             messageService.newMessage('Select the word or passage that best describes the relationship between <span class="quotedText">' + service.sourceConcept.label + '</span> and <span class="quotedText">' + service.targetConcept.label + '</span>.');
                             service.deSelectAll();
                             service.highlight(service.relationTarget);
+
+                            networkScope.highlightNode(concept);
+                            // if(!networkScope.$$phase) networkScope.$apply();
+
                         });
                 });
         } else {
+            networkScope.unselectNodes();
             service.deHighlightAll();
             appellationService
                 .getAppellation(target.attr("appellation"))
@@ -385,10 +391,14 @@ app.factory('selectionService', function(appellationService, messageService, pre
                     service.source = a;
                     conceptService
                         .getConcept(service.source.interpretation)
-                        .then(function(c) {
-                            messageService.newMessage('You selected <span class="quotedText">' + c.label + '</span>.');
-                            service.sourceConcept = c;
-                            return c;
+                        .then(function(concept) {
+                            messageService.newMessage('You selected <span class="quotedText">' + concept.label + '</span>.');
+                            service.sourceConcept = concept;
+
+                            networkScope.highlightNode(concept);
+                            // if((!networkScope.$$phase) networkScope.$apply();
+
+                            return concept;
                         });
                 });
             service.displayActions(targetElement, icons);
@@ -433,14 +443,22 @@ app.factory('selectionService', function(appellationService, messageService, pre
         if (service.ignoreWordClick) return
 
         targetElement = target;
+        service.deHighlightAll();
         service.deSelectAll();  // New selection.
+
+        var networkScope = angular.element($('#network')).isolateScope();
+        if (!service.noAppellation) {
+            networkScope.unselectNodes();
+            if(!networkScope.$$phase) networkScope.$apply();
+        }
+
         service.select(target);
         service.displayWordActions(targetElement);
 
         // TODO: figure out why this is necessary.
         var alertScope = angular.element($('#alerts')).scope();
         alertScope.newMessage('Hold the shift key and click on another word to select a series of words.');
-        alertScope.$apply();
+        if(!alertScope.$$phase) alertScope.$apply();
         return;
     }
 
@@ -526,9 +544,14 @@ app.factory('predicateService', ['$rootScope', 'Predicate', function($rootScope,
 
 app.factory('relationService', ['$rootScope', 'Relation', function($rootScope, Relation) {
     return {
+        relationLabels: {},
         createRelation: function(data) {
             var relation = new Relation(data);
             return relation.$save().then(function(r, rHeaders) {
+                rScope = angular.element($('#relations')).scope();
+                rScope.relations.push(r);
+                rScope.updateLabel(r);
+
                 $rootScope.$broadcast('newRelation', r);
                 return r;
             });
@@ -577,7 +600,10 @@ app.factory('appellationService', ['$rootScope', 'Appellation', function($rootSc
             return Appellation.query(function(appellations) {
                 service.appellations = appellations;
                 appellations.forEach(function(a) {
-                    service.appellationHash[a.id] = a;
+                    if(service.appellationHash[a.interpretation] == undefined) {
+                        service.appellationHash[a.interpretation] = [];
+                    }
+                    service.appellationHash[a.interpretation].push(a);
                 });
                 callback(appellations);
             });
@@ -589,11 +615,6 @@ app.factory('appellationService', ['$rootScope', 'Appellation', function($rootSc
             }).$promise.then(function(a) {
                 return a;
             });
-            // var found;
-            // service.appellations.forEach(function(appellation) {
-            //     if (String(appellation.id) == String(appId)) found = appellation;
-            // });
-            // return found;    // null if not found.
         },
         getAppellationIndex: function(appId) {  // Retrieve by ID.
             var foundIndex;
@@ -607,22 +628,30 @@ app.factory('appellationService', ['$rootScope', 'Appellation', function($rootSc
             var service = this;
             return appellation.$save().then(function(a, rHeaders) {
                 service.appellations.push(a);
+                if(service.appellationHash[a.interpretation] == undefined) {
+                    service.appellationHash[a.interpretation] = [];
+                }
+                service.appellationHash[a.interpretation].push(a);
                 $rootScope.$broadcast('newAppellation', a);
                 return a;
             });
         },
         deleteAppellation: function(data) {
-            var app = service.getAppellation(data.id);
-            var appData = {
-                id: app.id,
-                tokenIds: app.tokenIds,
-                stringRep: app.stringRep
-            }
-            return Appellation.delete(data, function() {
-                service.getAppellations(function() { null; });  // Refresh.
-                $rootScope.$broadcast('deleteAppellation', appData);
-                return appData;
-            });
+            service
+                .getAppellation(data.id)
+                .then(function(appellation) {
+                    var appData = {
+                        id: appellation.id,
+                        tokenIds: appellation.tokenIds,
+                        stringRep: appellation.stringRep
+                    }
+                    return Appellation.delete(data, function() {
+                        $rootScope.$broadcast('deleteAppellation', appData);
+                        service.getAppellations(function() { null; });  // Refresh.
+                        return appData;
+                    });
+
+                });
         }
     };
 }]);
@@ -655,19 +684,6 @@ app.controller('AlertController', function ($scope, $sce) {
     };
 });
 
-// app.controller('InstructionController', function($scope, $sce) {
-//     $scope.message = 'current !! message';
-//
-//     $scope.setMessage = function(message) {
-//         $scope.message = message;
-//         $scope.$apply();
-//     }
-//
-//     $scope.$on('newMessage', function(event, msg) {
-//         $scope.setMessage($sce.trustAsHtml(msg));
-//     });
-// });
-
 app.controller('ActionsController', function ($scope) {
     $scope.actions = [
         { icon: 'glyphicon-plus' },
@@ -678,46 +694,46 @@ app.controller('ActionsController', function ($scope) {
 
 app.controller('RelationsController', ['$scope', 'relationService', 'selectionService', 'conceptService', 'appellationService', '$q', 'predicateService', function($scope, relationService, selectionService, conceptService, appellationService, $q, predicateService) {
     $scope.relationLabels = {};
+    $scope.updateLabel = function(relation) {
+        // if ( $scope.relationLabels[relation.id] !== undefined) return;
+
+        var sourceLabel, predicateLabel, targetLabel;
+
+        $q.all([
+            appellationService.getAppellation(relation.source),
+            predicateService.getPredicate(relation.predicate),
+            appellationService.getAppellation(relation.object)
+        ]).then(function(data) {
+            $q.all([
+                conceptService.getConcept(data[0].interpretation),
+                conceptService.getConcept(data[1].interpretation),
+                conceptService.getConcept(data[2].interpretation)
+            ]).then(function(cdata) {
+                sourceLabel = cdata[0].label;
+                predicateLabel = cdata[1].label;
+                targetLabel = cdata[2].label;
+                $scope.relationLabels[relation.id] = {
+                    source: sourceLabel,
+                    predicate: predicateLabel,
+                    target: targetLabel
+                }
+
+            });
+        });
+    }
     $q.all([
         relationService.getRelations(function(relations) {
             $scope.relations = relations;
-
-            relations.forEach(function(relation) {
-                // if ( $scope.relationLabels[relation.id] !== undefined) return;
-
-                var sourceLabel, predicateLabel, targetLabel;
-
-                $q.all([
-                    appellationService.getAppellation(relation.source),
-                    predicateService.getPredicate(relation.predicate),
-                    appellationService.getAppellation(relation.object)
-                ]).then(function(data) {
-                    $q.all([
-                        conceptService.getConcept(data[0].interpretation),
-                        conceptService.getConcept(data[1].interpretation),
-                        conceptService.getConcept(data[2].interpretation)
-                    ]).then(function(cdata) {
-                        sourceLabel = cdata[0].label;
-                        predicateLabel = cdata[1].label;
-                        targetLabel = cdata[2].label;
-                        $scope.relationLabels[relation.id] = {
-                            source: sourceLabel,
-                            predicate: predicateLabel,
-                            target: targetLabel
-                        }
-                    });
-                });
-            });
+            relations.forEach($scope.updateLabel);
         })
     ]).then(function(data) {
-        if(!$scope.$$phase) {
-            $scope.$apply();
-        }
+        if(!$scope.$$phase) $scope.$apply();
     });
 
-    $scope.$on('newRelation', function(event, r) {
-        $scope.relations.push(r);
-    });
+    // $scope.$on('newRelation', function(event, r) {
+    //     $scope.relations.push(r);
+    //     $scope.updateLabel(r);
+    // });
 
     var getRelationByID = function(relId) {
         for (i = 0; i < $scope.relations.length; i++) {
@@ -742,15 +758,28 @@ app.controller('RelationsController', ['$scope', 'relationService', 'selectionSe
     }
 }]);
 
-app.controller('AppellationsController', ['$scope', 'appellationService', 'selectionService', function($scope, appellationService, selectionService) {
+app.controller('AppellationsController', ['$scope', 'appellationService', 'selectionService', 'conceptService', function($scope, appellationService, selectionService, conceptService) {
+    $scope.appellationLabels = {};
 
     appellationService.getAppellations(function(appellations) {
         $scope.appellations = appellations;
+        appellations.forEach(function(appellation) {
+            conceptService
+                .getConcept(appellation.interpretation)
+                .then(function(concept) {
+                     $scope.appellationLabels[appellation.id] = concept.label;
+                });
+        });
     });
 
     // Add a new appellation to the model.
-    $scope.$on('newAppellation', function(event, a) {
-        $scope.appellations.push(a);
+    $scope.$on('newAppellation', function(event, appellation) {
+        conceptService
+            .getConcept(appellation.interpretation)
+            .then(function(concept) {
+                $scope.appellationLabels[appellation.id] = concept.label;
+            });
+        $scope.appellations.push(appellation);
     });
 
     // Remove a deleted appellation from the model.
@@ -869,7 +898,7 @@ app.directive('ngEnter', function($document) {
             var enterWatcher = function(event) {
                 if (event.which === 13) {
                     scope.ngEnter();
-                    scope.$apply();
+                    if (!scope.$$phase) scope.$apply();
                     event.preventDefault();
                     $document.unbind("keydown keypress", enterWatcher);
                 }
@@ -961,7 +990,7 @@ app.factory("errors", function($rootScope, messageService, $timeout){
     };
 });
 
-app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 'relationService', 'conceptService', function(d3Service, $rootScope, appellationService, relationService, conceptService) {
+app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 'relationService', 'conceptService', 'selectionService', '$q', 'messageService', function(d3Service, $rootScope, appellationService, relationService, conceptService, selectionService, $q, messageService) {
     return {
         scope: {
             'graph': '='
@@ -971,11 +1000,13 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
 
             d3Service.d3().then(function(d3) {
                 var width = 300,
-                    height = 390;
+                    height = 390,
+                    linkDistance = 100;
+
 
             	var force = d3.layout.force()
-            	    .charge(-50)
-            	    .linkDistance(100)
+            	    .charge(-200)
+            	    .linkDistance(linkDistance)
             	    .size([width, height]);
 
             	var svg = d3.select(element[0]).append("svg")
@@ -1029,41 +1060,53 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
                     scope.update();
                 }
 
-                scope.addNode = function(node) {
+                scope.addNode = function(appellation) {
                     // scope.nodes.push(node);
                     conceptService
-                        .getConcept(node.interpretation)
-                        .then(function(c) {
-                            scope.nodes.push(c);
+                        .getConcept(appellation.interpretation)
+                        .then(function(concept) {
+                            var n = scope.findNode(concept.id);
+                            if (n == undefined) scope.nodes.push(concept);
                         });
                     scope.update();
                 }
 
                 scope.addEdge = function (relation) {
-                    var sourceNode, targetNode;
-
-                    appellationService
-                        .getAppellation(relation.source)
-                        .then(function(a) {
-                            conceptService
-                                .getConcept(a.interpretation)
-                                .then(function(c){
-                                    sourceNode = scope.findNodeIndex(c.id);
-                                    appellationService
-                                        .getAppellation(relation.object)
-                                        .then(function(a) {
-                                            conceptService
-                                                .getConcept(a.interpretation)
-                                                .then(function(c){
-                                                    targetNode = scope.findNodeIndex(c.id);
-                                                    if((sourceNode !== undefined) && (targetNode !== undefined)) {
-                                                        scope.edges.push({"source": sourceNode, "target": targetNode, "relation": relation});
-                                                        scope.update();
-                                                    }
-                                                });
-                                        });
-                                });
+                    $q.all([
+                        appellationService.getAppellation(relation.source),
+                        appellationService.getAppellation(relation.object),
+                    ]).then(function(data) {
+                        $q.all([
+                            conceptService.getConcept(data[0].interpretation),
+                            conceptService.getConcept(data[1].interpretation),
+                        ]).then(function(cdata){
+                            var sourceNode = scope.findNodeIndex(cdata[0].id);
+                            var targetNode = scope.findNodeIndex(cdata[1].id);
+                            if((sourceNode !== undefined) && (targetNode !== undefined)) {
+                                scope.edges.push({"source": sourceNode, "target": targetNode, "relation": relation});
+                                scope.update();
+                            }
                         });
+                    });
+                }
+
+                scope.highlightNode = function(node) {
+                    d3.select('#node_' + node.id).classed("nodeSelected", true);
+                }
+
+                scope.selectNode = function(node) {
+                    scope.highlightNode(node);
+                    selectionService.deHighlightAll();
+                    selectionService.deSelectAll();
+                    selectionService.clearActions();
+                    messageService.reset();
+
+                    appellationService.appellationHash[node.id].forEach(function(appellation) {
+                        selectionService.highlight($('[appellation='+appellation.id+']'));
+                    });
+                }
+                scope.unselectNodes = function() {
+                    d3.select('.nodeSelected').classed("nodeSelected", false);
                 }
 
                 scope.update = function() {
@@ -1073,19 +1116,33 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
                         .data(scope.edges)
                         .enter().append("line")
                         .attr("class", "edge")
+                        .attr('marker-end','url(#arrowhead)')
                         .style("stroke", "black")
                         .style("stroke-width", function(d) { return Math.sqrt(d.value); });
 
+                    rScope = angular.element($('#relations')).scope();
+
                     var node = svg.selectAll(".node")
                         .data(scope.nodes)
-                        .enter().append("circle")
+                        .enter().append("g")
                             .attr("class", "node")
-                            .attr("r", 8)
-                            .style("fill", 'blue')
+                            .attr("id", function(d) { return 'node_'+d.id; })
                             .call(force.drag);
 
-                    node.append("title")
-                        .text(function(d) { return d.name; });
+                    node.append("circle")
+                        .attr("r", 8)
+                        .attr("class", "node");
+
+                    node.append("text")
+                        .attr('dx', 12)
+                        .attr('dy', "0.35em")
+                        .attr("class", "nodeLabel")
+                        .text(function(d) { return d.label; });
+
+                    node.on("click", function(n) {
+                        scope.unselectNodes();
+                        scope.selectNode(n);
+                    });
 
                     force
                         .nodes(scope.nodes)
@@ -1097,19 +1154,88 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
                             .attr("y1", function(d) { return d.source.y; })
                             .attr("x2", function(d) { return d.target.x; })
                             .attr("y2", function(d) { return d.target.y; });
-                        node.attr("cx", function(d) { return d.x; })
-                            .attr("cy", function(d) { return d.y; });
+                        node.attr("transform", function(d) {
+                            return "translate(" + d.x + "," + d.y + ")";
+                        });
+
+                        edgepaths.attr('d', function(d) {
+                            return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y;
+                        });
+
+                        edgelabels.attr('transform',function(d,i){
+                            if (d.target.x<d.source.x) {
+                                bbox = this.getBBox();
+                                rx = bbox.x+bbox.width/2;
+                                ry = bbox.y+bbox.height/2;
+                                return 'rotate(180 '+rx+' '+ry+')';
+                            } else {
+                                return 'rotate(0)';
+                            }
+                        });
                     });
+
+                    var edgepaths = svg.selectAll(".edgepath")
+                        .data(scope.edges)
+                        .enter()
+                        .append("path")
+                        .attr({
+                            "d": function(d) {
+                                    return 'M '+d.source.x+' '+d.source.y+' L '+ d.target.x +' '+d.target.y;
+                                },
+                            'class':'edgepath',
+                             'fill-opacity':0,
+                             'stroke-opacity':0,
+                             'fill':'blue',
+                             'stroke':'red',
+                             'id':function(d,i) {return 'edgepath'+i; }
+                         })
+                          .style("pointer-events", "none");
+
+                    var edgelabels = svg.selectAll(".edgelabel")
+                      .data(scope.edges)
+                      .enter()
+                      .append('text')
+                      .style("pointer-events", "none")
+                      .attr({'class':'edgelabel',
+                             'id':function(d,i){return 'edgelabel'+i},
+                             'dx': linkDistance/4,
+                             'dy':0,
+                             'font-size':10,
+                             'fill':'#aaa'});
+
+                    edgelabels.append('textPath')
+                      .attr('xlink:href',function(d,i) {return '#edgepath'+i})
+                      .style("pointer-events", "none")
+                      .text(function(d) {
+                          return rScope.relationLabels[d.relation.id].predicate;
+                      });
+
+                  svg.append('defs').append('marker')
+                          .attr({'id':'arrowhead',
+                                 'viewBox':'-0 -5 10 10',
+                                 'refX':15,
+                                 'refY':0,
+                                 //'markerUnits':'strokeWidth',
+                                 'orient':'auto',
+                                 'markerWidth':10,
+                                 'markerHeight':10,
+                                 'xoverflow':'visible'})
+                          .append('svg:path')
+                              .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+                              .attr('fill', '#ccc')
+                              .attr('stroke','#ccc');
+
+
                 }
 
                 appellationService.getAppellations(function(appellations){
-                    appellations.forEach(function(a) {
-                        scope.addNode(a);
+                    appellations.forEach(function(appellation) {
+                        scope.addNode(appellation);
                     });
                 }).$promise.then(function(d) {
                     relationService.getRelations(function(relations){
-                        relations.forEach(function(r) {
-                            scope.addEdge(r);
+                        relations.forEach(function(relation) {
+                            scope.addEdge(relation);
                         });
                     }).$promise.then(function(d) {
                         scope.update();
@@ -1117,8 +1243,8 @@ app.directive('d3Network', ['d3Service', '$rootScope', 'appellationService', 're
                 });
 
 
-                $rootScope.$on('newAppellation', function(event, a) {
-                    scope.addNode(a);
+                $rootScope.$on('newAppellation', function(event, appellation) {
+                    scope.addNode(appellation);
                 });
 
                 $rootScope.$on('newRelation', function(event, r) {

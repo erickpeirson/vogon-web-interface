@@ -12,7 +12,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
         <script src="js/network.js"></script>
         <script src="js/main.js"></script>
-
+        <title>Annotate</title>
     </head>
     <body escape-key>
         <div id="header" class="navbar-fixed-top">
@@ -61,7 +61,7 @@
                             <div id="annotations" ng-controller="AppellationsController" class="panel-body">
                                 <div class="list-group">
                                     <a href="#" ng-repeat="appellation in appellations" class="list-group-item" ng-click="appellationClick(appellation.id)">
-                                        {{ appellation.stringRep }}
+                                        <span class="quotedText">{{ appellation.stringRep }}</span> ({{ appellationLabels[appellation.id] }})
                                     </a>
                                 </div>
                             </div>
@@ -70,7 +70,7 @@
                             <div id="relations" ng-controller="RelationsController" class="panel-body">
                                 <div class="list-group">
                                     <a href="#" ng-repeat="relation in relations" class="list-group-item" ng-click="relationClick(relation)">
-                                        {{ relationLabels[relation.id].source }} {{ relationLabels[relation.id].predicate }} {{ relationLabels[relation.id].target }}
+                                        {{ relationLabels[relation.id].source }} - <span class="quotedText">{{ relationLabels[relation.id].predicate }}</span> - {{ relationLabels[relation.id].target }}
                                     </a>
                                 </div>
                             </div>

@@ -186,4 +186,20 @@ word.appellation.highlight {
 .list-group {
     overflow: auto;
     height: 370px;
+    font-size: 8pt;
+}
+
+.nodeLabel {
+    font-size: 8pt;
+}
+.edgeLabel {
+    font-size: 7pt;
+}
+
+circle.node {
+    fill: rgba(0, 0, 100, 0.9);
+}
+
+.nodeSelected circle {
+    fill: rgba(0, 100, 0, 0.9);
 }
